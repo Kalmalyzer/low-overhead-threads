@@ -10,46 +10,45 @@ Thread states:
 	Runnable
 	Thread can be executed. It may or may not be running right now.
 	Transition to:
-		Waiting, Terminated
+		Waiting, Uninitialized
 
 	Waiting
 	Thread is waiting for a signal and not executing
 	Transition to:
 		Runnable
 
-	Terminated
-	Thread has finished execution
-	Transition to:
-		Runnable? Uninitialized?
-
 
 
 set signal:
 	if signal flag is not set:
 		set signal flag
+		disable interrupts
 		if a thread is waiting on signal:
 			transition thread from waiting to runnable (this invokes scheduler)
+		enable interrupts
 
 wait on signal & clear afterward:
-
+	disable interrupts
 	if signal flag is not set:
 		mark that current thread is waiting on signal
 		transition current thread from runnable to waiting (this invokes scheduler)
 		mark that current thread is no longer waiting on signal
 		clear signal
-
+	enable interrupts
 
 transition thread i from waiting to runnable:
 	i.state = runnable
 	if current thread > i:
-		switchToThread(i)
+		desired thread = i
+		switchToThreadViaFunctionCall
 
 transition thread i from runnable to waiting:
 	i.state = waiting
 	if i <= current thread:
 		for j = i to num_threads:
 			if j.state == runnable:
-				switchToThread(j)
+				desired thread = j
+				switchToThreadViaFunctionCall
 				break
 
 
@@ -73,15 +72,20 @@ return from interrupt with context switch:
 		rte
 
 	
-switch to thread:
-	push registers (d2-d7/a2-a6) to stack
+switch to thread via function call:
+	store registers (d0-d7/a0-a6) in old thread struct
+	store function-exit-location in old thread struct
+	store current SR in old thread struct
 	store usp in old thread struct
 
-	current thread = i
+	current thread = desired thread
 	fetch usp from new thread struct
-	pop registers (d2-d7/a2-a6) from stack
+	fetch registers (d0-d7/a0-a6) from new thread struct
+	fetch PC from new thread struct and place on stack
+	fetch CCR from new thread struct and place on stack
+	rtr
+function-exit-location:
 	rts
-
 	
 switch to thread via RTE:
 
