@@ -1,4 +1,12 @@
 
+		include	"Threading/Log.i"
+		include	"Threading/Scheduler.i"
+		include	"Threading/Signals.i"
+		include	"Threading/Threads.i"
+
+		include	<lvo/exec_lib.i>
+		include	<lvo/dos_lib.i>
+
 ConsumerThreadId = 0
 ProducerThreadId = 1
 
@@ -6,20 +14,7 @@ ItemProducedSignalId = 0
 
 		section	code,code
 
-		
 start:
-
-		move.l	$4.w,ExecBase
-
-; open DOS.library
-
-		move.l	ExecBase,a6
-		lea	DosName,a1
-		moveq	#0,d0
-		jsr	_LVOOpenLibrary(a6)
-		move.l	d0,DosBase
-
-
 		moveq	#ConsumerThreadId,d0
 		lea	consumerThreadFunc,a0
 		lea	consumerStackBeginning,a1
@@ -34,17 +29,12 @@ start:
 
 		bsr	runScheduler
 
-; Close dos.library
-
-		move.l	DosBase,a1
-		move.l	$4.w,a6
-		jsr	_LVOCloseLibrary(a6)
-
 		moveq	#0,d0
 		rts
 		
 		
 producerThreadFunc
+		LOG_INFO_STR "Producer starts"
 
 		moveq	#0,d7
 .loop
@@ -53,7 +43,11 @@ producerThreadFunc
 		add.b	d7,d1
 		move.b	d1,(a0)+
 		move.l	a0,writePtr
+
+		move.b	d1,ProducerMessageEnd-2
 		
+		LOG_INFO_PTR #ProducerMessage
+
 		moveq	#ItemProducedSignalId,d0
 		bsr	setSignal
 
@@ -62,16 +56,19 @@ producerThreadFunc
 		bne.s	.loop
 
 		move.l	writePtr,a0
-		clr.b	(a0)+
+		move.b	#$ff,(a0)+
 		move.l	a0,writePtr
 		
 		moveq	#ItemProducedSignalId,d0
 		bsr	setSignal
 		
+		LOG_INFO_STR "Producer done"
+
 		rts
 
 
 consumerThreadFunc
+		LOG_INFO_STR "Consumer starts"
 
 .loop
 		move.l	readPtr,a2
@@ -79,54 +76,54 @@ consumerThreadFunc
 		cmp.l	a2,a3
 		bne.s	.itemsAvailable
 
+		LOG_INFO_STR "Consumer has no items available, waits for signal from producer"
+
 		moveq	#ItemProducedSignalId,d0
 		bsr	waitAndClearSignal
+
+		LOG_INFO_STR "Consumer receives signal from producer, and looks for items again"
 		bra.s	.loop
 	
 .itemsAvailable
 		
+		LOG_INFO_STR "Consumer has items available"
 
 .consumeItem
+		move.l	readPtr,a2
 		move.b	(a2)+,d0
-		move.l	a0,readPtr
+		move.l	a2,readPtr
 
-		cmp.b	#0,d0
+		cmp.b	#$ff,d0
 		beq.s	.done
-
 
 		move.b	d0,ConsumerMessageEnd-2
 		
-		move.l	DosBase,a6
-		jsr	_LVOOutput(a6)
-		move.l	d0,d1
-		move.l	#ConsumerMessage,d2
-		move.l	#ConsumerMessageEnd-ConsumerMessage,d3
-		jsr	_LVOWrite(a6)
+		LOG_INFO_PTR #ConsumerMessage
 
-		cmp.l	a2,a3
-		beq.s	.loop
+		bra.s	.loop
 
 .done
+		LOG_INFO_STR "Consumer done"
+
 		rts
 
 
 		section	data,data
 
-ConsumerMessage
-		dc.b	"Consumed value: X",10
-ConsumerMessageEnd
+ProducerMessage
+		dc.b	"Produced value: X",0
+ProducerMessageEnd
 
-DosName		dc.b	"dos.library",0
+ConsumerMessage
+		dc.b	"Consumed value: X",0
+ConsumerMessageEnd
 
 		even
 		
-readOffset	dc.w	0
-writeOffset	dc.w	0
+readPtr		dc.l	items
+writePtr	dc.l	items
 		
 		section	bss,bss
-
-ExecBase	ds.l	1
-DosBase		ds.l	1
 
 items
 		ds.b	1024

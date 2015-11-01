@@ -1,10 +1,13 @@
 
+		include	"Threading/Log.i"
 		include	"Threading/Scheduler.i"
 		include	"Threading/Threads.i"
 
 		section	code,code
 
 runScheduler
+		LOG_INFO_STR "Scheduler begins running threads"
+
 		move.b	#IdleThreadId,currentThread
 		move.b	#Thread_state_Runnable,Threads+IdleThreadId*Thread_SIZEOF+Thread_state
 		
@@ -16,7 +19,9 @@ runScheduler
 		bsr	chooseThreadToRun
 		cmp.b	#IdleThreadId,d0
 		bne.s	.foundThreadToRun
-		illegal
+
+		LOG_ERROR_STR "Only the idle thread is in runnable state. The system has deadlocked."
+
 .foundThreadToRun
 		move.b	d0,desiredThread
 
@@ -25,6 +30,7 @@ runScheduler
 		bra.s	.loop
 		
 .done
+		LOG_INFO_STR "No live threads - scheduler exiting"
 		rts
 
 ;------------------------------------------------------------------------
@@ -60,7 +66,8 @@ chooseThreadToRun
 		addq.w	#1,d0
 		cmp.w	#MAX_THREADS,d0
 		bne.s	.thread
-		illegal
+
+		LOG_ERROR_STR "No threads are in runnable state. The system has deadlocked."
 
 .suitable_thread_found
 		rts
@@ -106,7 +113,7 @@ switchToDesiredThread
 
 		move.l	Thread_Dn+0*4(a1),oldD0
 		move.l	Thread_Dn+1*4(a1),oldD1
-		movem.l	Thread_Dn+0*4(a1),d2-d7
+		movem.l	Thread_Dn+2*4(a1),d2-d7
 		move.l	Thread_An+0*4(a1),oldA0
 		move.l	Thread_An+1*4(a1),oldA1
 		movem.l	Thread_An+2*4(a1),a2-a6
