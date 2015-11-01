@@ -1,0 +1,99 @@
+
+
+Thread states:
+
+	Uninitialized
+	Thread settings are not valid
+	Transition to:
+		Runnable
+
+	Runnable
+	Thread can be executed. It may or may not be running right now.
+	Transition to:
+		Waiting, Terminated
+
+	Waiting
+	Thread is waiting for a signal and not executing
+	Transition to:
+		Runnable
+
+	Terminated
+	Thread has finished execution
+	Transition to:
+		Runnable? Uninitialized?
+
+
+
+set signal:
+	if signal flag is not set:
+		set signal flag
+		if a thread is waiting on signal:
+			transition thread from waiting to runnable (this invokes scheduler)
+
+wait on signal & clear afterward:
+
+	if signal flag is not set:
+		mark that current thread is waiting on signal
+		transition current thread from runnable to waiting (this invokes scheduler)
+		mark that current thread is no longer waiting on signal
+		clear signal
+
+
+transition thread i from waiting to runnable:
+	i.state = runnable
+	if current thread > i:
+		switchToThread(i)
+
+transition thread i from runnable to waiting:
+	i.state = waiting
+	if i <= current thread:
+		for j = i to num_threads:
+			if j.state == runnable:
+				switchToThread(j)
+				break
+
+
+				
+set signal from interrupt:
+	if signal flag is not set:
+		set signal flag
+		if a thread is waiting on signal:
+			transition thread from waiting to runnable with delayed reaction
+
+transition thread i from waiting to runnable with delayed reaction:
+	i.state = runnable
+	if current thread > i:
+		if desired thread > i:
+			desired thread = i
+
+return from interrupt with context switch:
+	if current thread != desired thread:
+		switchToThreadViaRte(desired thread)
+	else:
+		rte
+
+	
+switch to thread:
+	push registers (d2-d7/a2-a6) to stack
+	store usp in old thread struct
+
+	current thread = i
+	fetch usp from new thread struct
+	pop registers (d2-d7/a2-a6) from stack
+	rts
+
+	
+switch to thread via RTE:
+
+	store registers (d0-d7/a0-a6) in old thread struct
+	store rte-PC in old thread struct
+	store rte-SR in old thread struct
+	store usp in old thread struct
+
+	current thread = desired thread
+	fetch usp from new thread struct
+	fetch registers (d0-d7/a0-a6) from new thread struct
+	fetch rte-PC from new thread struct
+	fetch rte-SR from new thread struct
+	rte
+
