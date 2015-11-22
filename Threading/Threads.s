@@ -92,8 +92,7 @@ waitCurrentThread
 Threads
 		REPT	MAX_THREADS
 		dc.b	Thread_state_Uninitialized	; Thread_state
-		dc.b	-1				; Thread_waitingSignal
-		dcb.b	2,0
+		dcb.b	3,0
 		dc.l	0				; Thread_stackPtr
 		dc.l	0				; Thread_stackLow
 		dc.l	0				; Thread_stackHigh

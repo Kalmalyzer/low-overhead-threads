@@ -66,17 +66,12 @@ waitAndClearSignal
 		moveq	#0,d0
 		move.b	currentThread,d0
 		move.b	d0,Signal_waitingThread(a0)
-		lea	Threads,a1
-		mulu.w	#Thread_SIZEOF,d0
-		add.w	d0,a1
-		move.b	d1,Thread_waitingSignal(a1)
 
-		movem.l	a0-a1,-(sp)
+		move.l	a0,-(sp)
 		bsr	waitCurrentThread
-		movem.l	(sp)+,a0-a1
+		move.l	(sp)+,a0
 
 		st	Signal_waitingThread(a0)
-		st	Thread_waitingSignal(a1)
 
 		sf	Signal_state(a0)
 
