@@ -1,8 +1,12 @@
 
+		include	"Threading/Interrupts.i"
 		include	"Threading/Log.i"
 		include	"Threading/Scheduler.i"
 		include	"Threading/Threads.i"
 
+		include	"hardware/custom.i"
+		include	"hardware/intbits.i"
+		
 		section	code,code
 
 runScheduler
@@ -10,28 +14,63 @@ runScheduler
 
 		move.b	#IdleThreadId,currentThread
 		move.b	#Thread_state_Runnable,Threads+IdleThreadId*Thread_SIZEOF+Thread_state
-		
+
+		bsr	installSchedulerInterruptHandler
+		REQUEST_SCHEDULER_INTERRUPT
+
 .loop
+		DISABLE_INTERRUPTS
 		bsr	anyThreadsAliveExceptIdleThread
-		tst.l	d0
-		beq.s	.done
-
-		bsr	chooseThreadToRun
-		cmp.b	#IdleThreadId,d0
-		bne.s	.foundThreadToRun
-
-		LOG_ERROR_STR "Only the idle thread is in runnable state. The system has deadlocked."
-
-.foundThreadToRun
-		move.b	d0,desiredThread
-
-		bsr	switchToDesiredThread
-		
-		bra.s	.loop
+		ENABLE_INTERRUPTS
+		tst.b	d0
+		bne.s	.loop
 		
 .done
 		LOG_INFO_STR "No live threads - scheduler exiting"
+		
+		bsr	removeSchedulerInterruptHandler
+		
 		rts
+
+;------------------------------------------------------------------------
+; out	d0	VBR
+
+getVBR
+		moveq	#0,d0	; TODO fetch VBR
+		rts
+
+;------------------------------------------------------------------------
+
+installSchedulerInterruptHandler
+		DISABLE_INTERRUPTS
+
+		bsr	getVBR
+		move.l	d0,a0
+		move.l	$64(a0),oldLevel1InterruptHandler
+		
+		move.l	#schedulerInterruptHandler,$64(a0)
+		
+		move.w	#INTF_SOFTINT,intreq+$dff000
+		move.w	#INTF_INTEN|INTF_SOFTINT,intena+$dff000
+
+		ENABLE_INTERRUPTS
+		rts
+
+;------------------------------------------------------------------------
+
+removeSchedulerInterruptHandler
+		DISABLE_INTERRUPTS
+
+		move.w	#INTF_SOFTINT,intreq+$dff000
+		move.w	#INTF_SOFTINT,intena+$dff000
+
+		bsr	getVBR
+		move.l	d0,a0
+		move.l	oldLevel1InterruptHandler,$64(a0)
+		
+		ENABLE_INTERRUPTS
+		rts
+
 
 ;------------------------------------------------------------------------
 ; out	d0.l	1 = threads alive, 0 = all threads dead
@@ -53,6 +92,8 @@ anyThreadsAliveExceptIdleThread
 		rts
 
 ;------------------------------------------------------------------------
+; Interrupts are expected to be disabled when this function is called
+;
 ; out	d0.w	thread to run (IdleThreadId will always be runnable)
 
 chooseThreadToRun
@@ -67,14 +108,17 @@ chooseThreadToRun
 		cmp.w	#MAX_THREADS,d0
 		bne.s	.thread
 
-		LOG_ERROR_STR "No threads are in runnable state. The system has deadlocked."
+		LOG_ERROR_STR "No threads are in runnable state, including idle thread. The system has deadlocked."
 
 .suitable_thread_found
 		rts
 
 ;------------------------------------------------------------------------
 
-switchToDesiredThread
+schedulerInterruptHandler
+		btst	#(INTB_SOFTINT&7),intena+(INTB_SOFTINT>>8)+$dff000
+		beq.s	.nSoftInt
+
 		move.l	d0,oldD0
 		move.l	d1,oldD1
 		move.l	a0,oldA0
@@ -99,17 +143,20 @@ switchToDesiredThread
 		move.l	oldA1,Thread_An+1*4(a0)
 		movem.l	a2-a6,Thread_An+2*4(a0)
 		
-		move.l	#.functionExit,Thread_PC(a0)
-		clr.b	Thread_CCR(a0)		; not needed - the calling code does not care about preserving CCR
+		move	usp,a1
+		move.l	a1,Thread_USP(a0)
 		
-		move.l	a7,Thread_USP(a0)
-
+		move.l	2(sp),Thread_PC(a0)
+		move.w	(sp),Thread_SR(a0)
 		
 		move.b	d1,currentThread
 		
 		mulu.w	#Thread_SIZEOF,d1
 		lea	Threads,a1
 		add.w	d1,a1
+
+		move.l	Thread_USP(a1),a2
+		move	a2,usp
 
 		move.l	Thread_Dn+0*4(a1),oldD0
 		move.l	Thread_Dn+1*4(a1),oldD1
@@ -118,28 +165,29 @@ switchToDesiredThread
 		move.l	Thread_An+1*4(a1),oldA1
 		movem.l	Thread_An+2*4(a1),a2-a6
 		
-		move.l	Thread_USP(a1),a7
-		
-		move.l	Thread_PC(a1),-(sp)
-		move.b	Thread_CCR(a1),-(sp)
+		move.l	Thread_PC(a1),2(sp)
+		move.w	Thread_SR(a1),(sp)
 
 		move.l	oldD0,d0
 		move.l	oldD1,d1
 		move.l	oldA0,a0
 		move.l	oldA1,a1
 		
-		rtr
-		
 .nSwitch
+		move.w	#INTF_SOFTINT,intena+$dff000
+		rte
+		
+.nSoftInt
+		move.l	oldLevel1InterruptHandler,-(sp)
 		rts
 
-.functionExit
-		rts
-		
+
 		section	data,data
 
 currentThread	dc.b	0
 desiredThread	dc.b	0
+
+oldLevel1InterruptHandler dc.l	0
 
 		section	bss,bss
 

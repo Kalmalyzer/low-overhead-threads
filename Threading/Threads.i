@@ -20,8 +20,8 @@ Thread_Dn	rs.l	8
 Thread_An	rs.l	7
 Thread_USP	rs.l	1
 Thread_PC	rs.l	1
-Thread_CCR	rs.b	1
-		rs.b	3
+Thread_SR	rs.w	1
+		rs.b	2
 Thread_SIZEOF	rs.b	0
 
 		XREF	setupThread

@@ -1,4 +1,5 @@
 
+		include	"Threading/Interrupts.i"
 		include	"Threading/Log.i"
 		include	"Threading/Scheduler.i"
 		include	"Threading/Threads.i"
@@ -13,6 +14,7 @@
 ;	a2	stack high address
 
 setupThread
+		DISABLE_INTERRUPTS
 		movem.l	d0/a0-a2/a4,-(sp)
 
 		mulu.w	#Thread_SIZEOF,d0
@@ -35,23 +37,27 @@ setupThread
 		move.b	#Thread_state_Runnable,Thread_state(a4)
 
 		movem.l	(sp)+,d1/a0-a2/a4
+		ENABLE_INTERRUPTS
 		rts
 
 ;------------------------------------------------------------------------
 
 terminateCurrentThread
+		DISABLE_INTERRUPTS
 		move.b	currentThread,d0
 		mulu.w	#Thread_SIZEOF,d0
 		lea	Threads,a0
 		add.w	d0,a0
 		move.b	#Thread_state_Uninitialized,Thread_state(a0)
 		
-		move.b	#IdleThreadId,desiredThread
-		bsr	switchToDesiredThread		; This call will never return
-
-		LOG_ERROR_STR "An already-terminated thread continued running after it had terminated itself"
+		bsr	chooseThreadToRun
+		move.b	d0,desiredThread
+		REQUEST_SCHEDULER_INTERRUPT		; This will result in the thread yielding within a few clock cycles, never returning
+		ENABLE_INTERRUPTS
+.loop		bra.s	.loop
 
 ;------------------------------------------------------------------------
+; Interrupts are expected to be disabled when this function is called
 ; in	d0.w	thread
 
 setThreadRunnable
@@ -66,12 +72,13 @@ setThreadRunnable
 		bls.s	.noThreadSwitch
 
 		move.b	d0,desiredThread
-		bsr	switchToDesiredThread
+		REQUEST_SCHEDULER_INTERRUPT
 
 .noThreadSwitch
 		rts
 
 ;------------------------------------------------------------------------
+; Interrupts are expected to be disabled when this function is called
 
 waitCurrentThread
 		moveq	#0,d0
@@ -83,8 +90,8 @@ waitCurrentThread
 
 		bsr	chooseThreadToRun
 		move.b	d0,desiredThread
-		bsr	switchToDesiredThread
-
+		REQUEST_SCHEDULER_INTERRUPT
+		; Current thread will (potentially) go to sleep once the calling code re-enables interrupts
 		rts
 
 		section	data,data
