@@ -43,6 +43,36 @@ setSignal
 ;------------------------------------------------------------------------
 ; in	d0.w	signal
 
+setSignalFromInterrupt
+		lea	Signals,a0
+		mulu.w	#Signal_SIZEOF,d0
+		add.w	d0,a0
+
+		tst.b	Signal_state(a0)
+		bne.s	.signalAlreadySet
+		
+		move.b	Signal_waitingThread(a0),d0
+		bmi.s	.noThreadWaitingOnsignal
+
+;		LOG_INFO_STR "A thread is waiting on signal; setting that thread to runnable"
+
+		st	Signal_waitingThread(a0)
+		bsr	setThreadRunnable
+		rts
+
+.noThreadWaitingOnsignal
+;		LOG_INFO_STR "No thread is currently waiting on signal"
+
+		st	Signal_state(a0)
+		rts
+
+.signalAlreadySet
+;		LOG_INFO_STR "Signal is already set"
+		rts
+
+;------------------------------------------------------------------------
+; in	d0.w	signal
+
 clearSignal
 		DISABLE_INTERRUPTS
 		lea	Signals,a0
