@@ -1,5 +1,6 @@
 
 		include	"Threading/Log.i"
+		include	"Threading/Scheduler.i"
 
 		include <lvo/exec_lib.i>
 		include <lvo/dos_lib.i>
@@ -11,6 +12,8 @@
 
 logMessageBasePtr
 		movem.l	d0-d3/a0-a1/a6,-(sp)
+		
+		bsr	disableSchedulerInterrupt
 
 		; Compute length of string
 		move.l	8*4(sp),a0
@@ -42,6 +45,8 @@ logMessageBasePtr
 		move.l	a6,a1
 		move.l	$4.w,a6
 		jsr	_LVOCloseLibrary(a6)
+
+		bsr	enableSchedulerInterrupt
 
 		movem.l	(sp)+,d0-d3/a0-a1/a6
 

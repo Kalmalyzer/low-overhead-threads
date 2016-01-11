@@ -50,8 +50,8 @@ installSchedulerInterruptHandler
 		
 		move.l	#schedulerInterruptHandler,$64(a0)
 		
-		move.w	#INTF_SOFTINT,intreq+$dff000
-		move.w	#INTF_INTEN|INTF_SOFTINT,intena+$dff000
+		ACKNOWLEDGE_SCHEDULER_INTERRUPT
+		ENABLE_SCHEDULER_INTERRUPT
 
 		ENABLE_INTERRUPTS
 		rts
@@ -61,8 +61,8 @@ installSchedulerInterruptHandler
 removeSchedulerInterruptHandler
 		DISABLE_INTERRUPTS
 
-		move.w	#INTF_SOFTINT,intreq+$dff000
-		move.w	#INTF_SOFTINT,intena+$dff000
+		ACKNOWLEDGE_SCHEDULER_INTERRUPT
+		DISABLE_SCHEDULER_INTERRUPT
 
 		bsr	getVBR
 		move.l	d0,a0
@@ -116,8 +116,10 @@ chooseThreadToRun
 ;------------------------------------------------------------------------
 
 schedulerInterruptHandler
-		btst	#(INTB_SOFTINT&7),intena+(INTB_SOFTINT>>8)+$dff000
+		btst	#(INTB_SOFTINT&7),intreqr+(1-(INTB_SOFTINT/8))+$dff000
 		beq.s	.nSoftInt
+
+		ACKNOWLEDGE_SCHEDULER_INTERRUPT
 
 		move.l	d0,oldD0
 		move.l	d1,oldD1
@@ -174,18 +176,41 @@ schedulerInterruptHandler
 		move.l	oldA1,a1
 		
 .nSwitch
-		move.w	#INTF_SOFTINT,intena+$dff000
 		rte
 		
 .nSoftInt
 		move.l	oldLevel1InterruptHandler,-(sp)
 		rts
 
+;------------------------------------------------------------------------
+
+disableSchedulerInterrupt
+		subq.b	#1,schedulerInterruptEnableCount
+		bmi.s	.done
+		DISABLE_SCHEDULER_INTERRUPT
+.done
+		rts
+		
+;------------------------------------------------------------------------
+
+enableSchedulerInterrupt
+		addq.b	#1,schedulerInterruptEnableCount
+		ble.s	.done
+		ENABLE_SCHEDULER_INTERRUPT
+.done
+		rts
+		
+;------------------------------------------------------------------------
+
 
 		section	data,data
 
 currentThread	dc.b	0
 desiredThread	dc.b	0
+
+schedulerInterruptEnableCount dc.b	1
+
+		cnop	0,4
 
 oldLevel1InterruptHandler dc.l	0
 

@@ -81,6 +81,13 @@ setThreadRunnable
 ; Interrupts are expected to be disabled when this function is called
 
 waitCurrentThread
+		tst.b	schedulerInterruptEnableCount
+		bhi.s	.schedulerInterruptEnabled
+
+		LOG_ERROR_STR "Attempted to wait with current thread while scheduler interrupt is disabled; the system has deadlocked"
+		
+.schedulerInterruptEnabled
+		
 		moveq	#0,d0
 		move.b	currentThread,d0
 		mulu.w	#Thread_SIZEOF,d0
