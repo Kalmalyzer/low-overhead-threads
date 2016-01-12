@@ -3,7 +3,7 @@
 		include	"Threading/Scheduler.i"
 		include	"Threading/Threads.i"
 
-HelloWorldThreadId = 0
+HelloWorldThreadId = 1
 
 		section	code,code
 		

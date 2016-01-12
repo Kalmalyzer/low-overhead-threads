@@ -7,4 +7,5 @@ Signal_waitingThread	rs.b	1
 Signal_SIZEOF	rs.b	0
 
 		XREF	setSignal
+		XREF	setSignalFromInterrupt
 		XREF	waitAndClearSignal

@@ -1,5 +1,7 @@
 
 
+		XREF	logMessageBasePtr
+
 ;------------------------------------------------------------------------
 ; Print message to standard output
 ;
@@ -8,59 +10,10 @@
 
 LOG_MESSAGE_BASE_PTR	MACRO	\1
 
-; from lvo/exec_lib.i
-_LVOOpenLibrary_\@	EQU	-408
-_LVOCloseLibrary_\@	EQU	-414
-
-; from lvo/dos_lib.i
-_LVOOutput_\@		EQU	-60
-_LVOWrite_\@		EQU	-48
-
-		movem.l	d0-d3/a0-a1/a6,-(sp)
-
 		move.l	\1,-(sp)
-		
-		; Compute length of string
-		move.l	\1,a0
-		moveq	#-1,d0
-.checkCharacter_\@
-		addq.l	#1,d0
-		tst.b	(a0)+
-		bne.s	.checkCharacter_\@
-		move.l	d0,-(sp)
+		bsr	logMessageBasePtr
+		addq.l	#4,sp
 
-		; Open dos.library
-		
-		move.l	$4.w,a6
-		lea	.dosName_\@,a1
-		moveq	#0,d0
-		jsr	_LVOOpenLibrary_\@(a6)
-		move.l	d0,a6
-
-		; Print string to standard output
-		
-		jsr	_LVOOutput_\@(a6)
-		move.l	d0,d1
-		move.l	(sp)+,d3
-		move.l	(sp)+,d2
-		jsr	_LVOWrite_\@(a6)
-
-		; Close dos.library
-		
-		move.l	a6,a1
-		move.l	$4.w,a6
-		jsr	_LVOCloseLibrary_\@(a6)
-
-		movem.l	(sp)+,d0-d3/a0-a1/a6
-
-		; Skip over strings embedded in code segment
-		
-		bra.w	.dosNameSkip_\@
-
-.dosName_\@	dc.b	"dos.library",0
-
-		even
-.dosNameSkip_\@
 		ENDM
 
 ;------------------------------------------------------------------------
