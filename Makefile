@@ -1,5 +1,5 @@
 
-THREADING_OBJECTS = out/Threads.o out/Scheduler.o out/Signals.o out/Log.o
+THREADING_OBJECTS = out/Threads.o out/Scheduler.o out/Signals.o out/Log.o out/VBR.o
 
 all: tests
 
@@ -38,6 +38,9 @@ out/Signals.o: Threading/Signals.s
 	
 out/Log.o: Threading/Log.s
 	vc -c Threading/Log.s -o $@
+
+out/VBR.o: Threading/VBR.s
+	vc -c Threading/VBR.s -o $@
 
 clean:
 #	rm -rf out

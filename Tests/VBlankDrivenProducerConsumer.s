@@ -6,6 +6,7 @@ VBLANKS_BETWEEN_EACH_PRODUCTION	=	2*50
 		include	"Threading/Scheduler.i"
 		include	"Threading/Signals.i"
 		include	"Threading/Threads.i"
+		include	"Threading/VBR.i"
 
 		include	<lvo/exec_lib.i>
 		include	<lvo/dos_lib.i>
@@ -44,12 +45,6 @@ start:
 		moveq	#0,d0
 		rts
 
-;------------------------------------------------------------------------
-
-getVBR
-		moveq	#0,d0	; TODO fetch VBR on 68010+ CPUs
-		rts
-		
 ;------------------------------------------------------------------------
 
 installLevel3Handler

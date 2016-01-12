@@ -3,6 +3,7 @@
 		include	"Threading/Log.i"
 		include	"Threading/Scheduler.i"
 		include	"Threading/Threads.i"
+		include	"Threading/VBR.i"
 
 		include	"hardware/custom.i"
 		include	"hardware/intbits.i"
@@ -30,13 +31,6 @@ runScheduler
 		
 		bsr	removeSchedulerInterruptHandler
 		
-		rts
-
-;------------------------------------------------------------------------
-; out	d0	VBR
-
-getVBR
-		moveq	#0,d0	; TODO fetch VBR
 		rts
 
 ;------------------------------------------------------------------------
