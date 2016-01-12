@@ -16,6 +16,9 @@ runScheduler
 		move.b	#IdleThreadId,currentThread
 		move.b	#Thread_state_Runnable,Threads+IdleThreadId*Thread_SIZEOF+Thread_state
 
+		bsr	chooseThreadToRun
+		move.b	d0,desiredThread
+
 		bsr	installSchedulerInterruptHandler
 		REQUEST_SCHEDULER_INTERRUPT
 
