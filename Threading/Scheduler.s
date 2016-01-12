@@ -167,12 +167,12 @@ schedulerInterruptHandler
 		move.l	Thread_PC(a1),2(sp)
 		move.w	Thread_SR(a1),(sp)
 
+.nSwitch
 		move.l	oldD0,d0
 		move.l	oldD1,d1
 		move.l	oldA0,a0
 		move.l	oldA1,a1
 		
-.nSwitch
 		rte
 		
 .nSoftInt
