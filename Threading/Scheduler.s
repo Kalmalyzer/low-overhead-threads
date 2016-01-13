@@ -95,18 +95,17 @@ anyThreadsAliveExceptIdleThread
 
 chooseThreadToRun
 		lea	Threads_state,a0
-		moveq	#0,d0
-.thread
-		cmp.b	#Thread_state_Runnable,(a0,d0.w)
-		beq.s	.suitable_thread_found
-
-		addq.w	#1,d0
-		cmp.w	#MAX_THREADS,d0
-		bne.s	.thread
+		moveq	#Thread_state_Runnable,d0
+		REPT	MAX_THREADS
+		cmp.b	(a0)+,d0
+		beq.s	.found
+		ENDR
 
 		LOG_ERROR_STR "No threads are in runnable state, including idle thread. The system has deadlocked."
-
-.suitable_thread_found
+		
+.found
+		sub.l	#Threads_state+1,a0
+		move.l	a0,d0
 		rts
 
 ;------------------------------------------------------------------------
