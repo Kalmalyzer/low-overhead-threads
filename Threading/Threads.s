@@ -103,12 +103,4 @@ Threads_state
 		dcb.b	MAX_THREADS,Thread_state_Uninitialized
 		
 Threads_regs
-		REPT	MAX_THREADS
-		dcb.l	8,0				; Thread_Dn
-		dcb.l	7,0				; Thread_An
-		dc.l	0				; Thread_USP
-		dc.l	0				; Thread_PC
-		dc.w	0				; Thread_SR
-		dc.l	0				; Thread_stackLow
-		dc.l	0				; Thread_stackHigh
-		ENDR
+		dcb.b	MAX_THREADS*Thread_SIZEOF,0

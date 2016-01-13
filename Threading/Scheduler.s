@@ -116,10 +116,7 @@ schedulerInterruptHandler
 
 		ACKNOWLEDGE_SCHEDULER_INTERRUPT
 
-		move.l	d0,oldD0
-		move.l	d1,oldD1
-		move.l	a0,oldA0
-		move.l	a1,oldA1
+		movem.l	d0-d1/a0-a1,-(sp)
 
 		moveq	#0,d0
 		move.b	currentThread,d0
@@ -130,46 +127,39 @@ schedulerInterruptHandler
 		cmp.b	d0,d1
 		beq.s	.nSwitch
 
-		mulu.w	#Thread_SIZEOF,d0
-		lea	Threads_regs,a0
-		add.w	d0,a0
-		move.l	oldD0,Thread_Dn+0*4(a0)
-		move.l	oldD1,Thread_Dn+1*4(a0)
-		movem.l	d2-d7,Thread_Dn+2*4(a0)
-		move.l	oldA0,Thread_An+0*4(a0)
-		move.l	oldA1,Thread_An+1*4(a0)
-		movem.l	a2-a6,Thread_An+2*4(a0)
-		
-		move	usp,a1
-		move.l	a1,Thread_USP(a0)
-		
-		move.l	2(sp),Thread_PC(a0)
-		move.w	(sp),Thread_SR(a0)
-		
 		move.b	d1,currentThread
 		
-		mulu.w	#Thread_SIZEOF,d1
-		lea	Threads_regs,a1
+		lea	Threads_regs+Thread_regsToSwitchAtTaskSwitch_end,a0
+		lea	Threads_regs+Thread_regsToSwitchAtTaskSwitch_start,a1
+		lsl.w	#Thread_SIZEOF_Shift,d0
+		lsl.w	#Thread_SIZEOF_Shift,d1
+		add.w	d0,a0
 		add.w	d1,a1
 
-		move.l	Thread_USP(a1),a2
+		movem.l	a2-a6,-(a0)	; Save a2-a6
+		movem.l	d2-d7,-(a0)	; Save d2-d7
+		movem.l	(sp)+,d4-d7
+		movem.l	d4-d7,-(a0)	; Save d0-d1/a0-a1
+		
+		move	usp,a2
+		move.l	a2,-(a0)	; Save USP
+		
+		move.w	(sp)+,-(a0)	; Save SR
+		move.l	(sp)+,-(a0)	; Save PC
+		
+		move.l	(a1)+,-(sp)	; Load PC
+		move.w	(a1)+,-(sp)	; Load SR
+
+		move.l	(a1)+,a2	; Load USP
 		move	a2,usp
 
-		move.l	Thread_Dn+0*4(a1),oldD0
-		move.l	Thread_Dn+1*4(a1),oldD1
-		movem.l	Thread_Dn+2*4(a1),d2-d7
-		move.l	Thread_An+0*4(a1),oldA0
-		move.l	Thread_An+1*4(a1),oldA1
-		movem.l	Thread_An+2*4(a1),a2-a6
+		movem.l	(a1)+,d4-d7	; Load d0-d1/a0-a1
+		movem.l	d4-d7,-(sp)
+		movem.l	(a1)+,d2-d7	; Load d2-d7
+		movem.l	(a1)+,a2-a6	; Load a2-a6
 		
-		move.l	Thread_PC(a1),2(sp)
-		move.w	Thread_SR(a1),(sp)
-
 .nSwitch
-		move.l	oldD0,d0
-		move.l	oldD1,d1
-		move.l	oldA0,a0
-		move.l	oldA1,a1
+		movem.l	(sp)+,d0-d1/a0-a1
 		
 		rte
 		
@@ -208,10 +198,3 @@ schedulerInterruptEnableCount dc.b	1
 		cnop	0,4
 
 oldLevel1InterruptHandler dc.l	0
-
-		section	bss,bss
-
-oldD0		ds.l	1
-oldD1		ds.l	1
-oldA0		ds.l	1
-oldA1		ds.l	1
