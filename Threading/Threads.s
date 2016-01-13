@@ -104,13 +104,11 @@ Threads_state
 		
 Threads_regs
 		REPT	MAX_THREADS
-		dc.l	0				; Thread_stackPtr
-		dc.l	0				; Thread_stackLow
-		dc.l	0				; Thread_stackHigh
 		dcb.l	8,0				; Thread_Dn
 		dcb.l	7,0				; Thread_An
 		dc.l	0				; Thread_USP
 		dc.l	0				; Thread_PC
-		dc.b	0				; Thread_CCR
-		dcb.b	3,0
+		dc.w	0				; Thread_SR
+		dc.l	0				; Thread_stackLow
+		dc.l	0				; Thread_stackHigh
 		ENDR
