@@ -33,10 +33,14 @@ Thread_regs_A6	rs.l	1
 Thread_regs_switchAtTaskSwitch_end rs.b 0
 Thread_regs_stackLow	rs.l	1
 Thread_regs_stackHigh rs.l	1
-; Thread struct is expected to contain at most 32 longwords
+Thread_regs_dataEnd	rs.b	0
 
 Thread_regs_SIZEOF_Shift = 	(2+5)
 Thread_regs_SIZEOF	=	1<<(Thread_regs_SIZEOF_Shift)
+
+		IFLT	Thread_regs_SIZEOF-Thread_regs_dataEnd
+		ERROR	"Thread_regs structure contains more data than Thread_regs_SIZEOF_shift allows for. Please change the two to match."
+		ENDC
 
 		XREF	setupThread
 		XREF	Threads_state
