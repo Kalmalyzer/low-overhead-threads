@@ -46,6 +46,6 @@ Setting a signal when no thread is waiting for it: ~120 cycles
 
 Setting a signal when a thread is waiting for it, but it does not result in a context switch: ~220 cycles
 
-Setting a signal, when a thread is waiting for it, and it results in a context switch: ~950 cycles
+Setting a signal, when a thread is waiting for it, and it results in a context switch: ~750 cycles
 
-Waiting for a signal, which results in a context switch: ~930 cycles
+Waiting for a signal, which results in a context switch: ~730 cycles
