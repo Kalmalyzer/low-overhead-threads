@@ -10,6 +10,16 @@
 		
 		section	code,code
 
+;------------------------------------------------------------------------
+; Run scheduler's dispatch
+;
+; The calling code should create at least one thread of its own before
+;   calling this function.
+; Calling this function will setup the current execution context as
+;   the idle thread. Execution will then start on the idle thread.
+; The function will return once all threads apart from the idle thread
+;   have terminated.
+
 runScheduler
 		LOG_INFO_STR "Scheduler begins running threads"
 
@@ -37,6 +47,7 @@ runScheduler
 		rts
 
 ;------------------------------------------------------------------------
+; Install scheduler interrupt handler as a level-1 interrupt (SOFTINT)
 
 installSchedulerInterruptHandler
 		DISABLE_INTERRUPTS
@@ -54,6 +65,7 @@ installSchedulerInterruptHandler
 		rts
 
 ;------------------------------------------------------------------------
+; Remove scheduler interrupt handler
 
 removeSchedulerInterruptHandler
 		DISABLE_INTERRUPTS
@@ -70,6 +82,8 @@ removeSchedulerInterruptHandler
 
 
 ;------------------------------------------------------------------------
+; Are any threads except the idle thread still alive?
+;
 ; out	d0.l	1 = threads alive, 0 = all threads dead
 
 anyThreadsAliveExceptIdleThread
@@ -89,88 +103,103 @@ anyThreadsAliveExceptIdleThread
 		rts
 
 ;------------------------------------------------------------------------
+; Identify the highest-priority thread that is currently runnable
+;
 ; Interrupts are expected to be disabled when this function is called
 ;
 ; out	d0.w	thread to run (IdleThreadId will always be runnable)
 
 chooseThreadToRun
 		lea	Threads_state,a0
-		moveq	#0,d0
-.thread
-		cmp.b	#Thread_state_Runnable,(a0,d0.w)
-		beq.s	.suitable_thread_found
-
-		addq.w	#1,d0
-		cmp.w	#MAX_THREADS,d0
-		bne.s	.thread
+		moveq	#Thread_state_Runnable,d0
+		REPT	MAX_THREADS
+		cmp.b	(a0)+,d0
+		beq.s	.found
+		ENDR
 
 		LOG_ERROR_STR "No threads are in runnable state, including idle thread. The system has deadlocked."
-
-.suitable_thread_found
+		
+.found
+		sub.l	#Threads_state+1,a0
+		move.l	a0,d0
 		rts
 
 ;------------------------------------------------------------------------
+; Scheduler interrupt handler
+;
+; The interrupt handler will perform a context switch, if necessary.
+; If no context switch is needed, it is a no-op.
 
 schedulerInterruptHandler
 		btst	#(INTB_SOFTINT&7),intreqr+(1-(INTB_SOFTINT/8))+$dff000
 		beq.s	.nSoftInt
 
+		; Scheduling interrupt is acknowledged before context switching
+		;   begins. This ensures that if a higher-priority interrupt
+		;   preempts this interrupt handler and requests another
+		;   scheduling interrupt during context switch processing, the
+		;   scheduler interrupt handler will re-run as soon as it has
+		;   completed the current context switch.
+		
 		ACKNOWLEDGE_SCHEDULER_INTERRUPT
 
-		move.l	d0,oldD0
-		move.l	d1,oldD1
-		move.l	a0,oldA0
-		move.l	a1,oldA1
+		movem.l	d0-d1/a0-a1,-(sp)
 
 		moveq	#0,d0
 		move.b	currentThread,d0
 
+		; desiredThread is sampled exactly once during the handler.
+		; It is sampled using an operation that is atomic on the A500.
+		; This ensures that desiredThread can be changed by
+		;   higher-priority interrupts during the execution of this
+		;   thread without any negative effects.
+		;
+		; It is sampled after the scheduler interrupt has been
+		;   acknowledged. This ensures that if a high-priority
+		;   interrupt performs an action which results in a change
+		;   of the desired thread, the scheduler will eventually
+		;   switch to that thread. It may require re-running the
+		;   scheduler interrupt handler an extra time.
+		
 		moveq	#0,d1
 		move.b	desiredThread,d1
 		
 		cmp.b	d0,d1
 		beq.s	.nSwitch
 
-		mulu.w	#Thread_SIZEOF,d0
-		lea	Threads_regs,a0
-		add.w	d0,a0
-		move.l	oldD0,Thread_Dn+0*4(a0)
-		move.l	oldD1,Thread_Dn+1*4(a0)
-		movem.l	d2-d7,Thread_Dn+2*4(a0)
-		move.l	oldA0,Thread_An+0*4(a0)
-		move.l	oldA1,Thread_An+1*4(a0)
-		movem.l	a2-a6,Thread_An+2*4(a0)
-		
-		move	usp,a1
-		move.l	a1,Thread_USP(a0)
-		
-		move.l	2(sp),Thread_PC(a0)
-		move.w	(sp),Thread_SR(a0)
-		
 		move.b	d1,currentThread
 		
-		mulu.w	#Thread_SIZEOF,d1
-		lea	Threads_regs,a1
+		lea	Threads_regs+Thread_regs_switchAtTaskSwitch_end,a0
+		lea	Threads_regs+Thread_regs_switchAtTaskSwitch_start,a1
+		lsl.w	#Thread_regs_SIZEOF_Shift,d0
+		lsl.w	#Thread_regs_SIZEOF_Shift,d1
+		add.w	d0,a0
 		add.w	d1,a1
 
-		move.l	Thread_USP(a1),a2
+		movem.l	a2-a6,-(a0)	; Save a2-a6
+		movem.l	d2-d7,-(a0)	; Save d2-d7
+		movem.l	(sp)+,d4-d7
+		movem.l	d4-d7,-(a0)	; Save d0-d1/a0-a1
+		
+		move	usp,a2
+		move.l	a2,-(a0)	; Save USP
+		
+		move.w	(sp)+,-(a0)	; Save SR
+		move.l	(sp)+,-(a0)	; Save PC
+		
+		move.l	(a1)+,-(sp)	; Load PC
+		move.w	(a1)+,-(sp)	; Load SR
+
+		move.l	(a1)+,a2	; Load USP
 		move	a2,usp
 
-		move.l	Thread_Dn+0*4(a1),oldD0
-		move.l	Thread_Dn+1*4(a1),oldD1
-		movem.l	Thread_Dn+2*4(a1),d2-d7
-		move.l	Thread_An+0*4(a1),oldA0
-		move.l	Thread_An+1*4(a1),oldA1
-		movem.l	Thread_An+2*4(a1),a2-a6
+		movem.l	(a1)+,d4-d7	; Load d0-d1/a0-a1
+		movem.l	d4-d7,-(sp)
+		movem.l	(a1)+,d2-d7	; Load d2-d7
+		movem.l	(a1)+,a2-a6	; Load a2-a6
 		
-		move.l	Thread_PC(a1),2(sp)
-		move.w	Thread_SR(a1),(sp)
-
 .nSwitch
-		move.l	oldD0,d0
-		move.l	oldD1,d1
-		move.l	oldA0,a0
-		move.l	oldA1,a1
+		movem.l	(sp)+,d0-d1/a0-a1
 		
 		rte
 		
@@ -179,6 +208,11 @@ schedulerInterruptHandler
 		rts
 
 ;------------------------------------------------------------------------
+; Disable scheduler interrupt, with reentrancy count
+;
+; The scheduler interrupt is enabled by default.
+; The scheduler interrupt will be disabled as long as disable has been
+;   called more times than enable.
 
 disableSchedulerInterrupt
 		subq.b	#1,schedulerInterruptEnableCount
@@ -188,6 +222,11 @@ disableSchedulerInterrupt
 		rts
 		
 ;------------------------------------------------------------------------
+; Enable scheduler interrupt, with reentrancy count
+;
+; The scheduler interrupt is enabled by default.
+; The scheduler interrupt will be disabled as long as disable has been
+;   called more times than enable.
 
 enableSchedulerInterrupt
 		addq.b	#1,schedulerInterruptEnableCount
@@ -201,18 +240,11 @@ enableSchedulerInterrupt
 
 		section	data,data
 
-currentThread	dc.b	0
-desiredThread	dc.b	0
+currentThread	dc.b	-1
+desiredThread	dc.b	-1
 
 schedulerInterruptEnableCount dc.b	1
 
 		cnop	0,4
 
 oldLevel1InterruptHandler dc.l	0
-
-		section	bss,bss
-
-oldD0		ds.l	1
-oldD1		ds.l	1
-oldA0		ds.l	1
-oldA1		ds.l	1

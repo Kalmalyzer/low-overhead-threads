@@ -8,6 +8,15 @@
 
 
 ;------------------------------------------------------------------------
+; Initialize a thread
+;
+; This function sets up initial register content and makes a thread
+;   runnable.
+; You need to provide both a starting execution point and a stack area
+;   for the thread.
+; The thread can terminate itself either by calling
+;   terminateCurrentThread or by returning from the entry point.
+;
 ; in	d0.w	thread index
 ;	a0	thread entry point
 ;	a1	stack low address
@@ -26,22 +35,26 @@ setupThread
 
 .threadAvailable
 		move.b	#Thread_state_Runnable,(a4,d0.w)
-		mulu.w	#Thread_SIZEOF,d0
+		mulu.w	#Thread_regs_SIZEOF,d0
 		lea	Threads_regs,a4
 		add.l	d0,a4
 
-		move.l	a1,Thread_stackLow(a4)
-		move.l	a2,Thread_stackHigh(a4)
+		move.l	a1,Thread_regs_stackLow(a4)
+		move.l	a2,Thread_regs_stackHigh(a4)
 
-		move.l	a0,Thread_PC(a4)
+		move.l	a0,Thread_regs_PC(a4)
 		move.l	#terminateCurrentThread,-(a2)
-		move.l	a2,Thread_USP(a4)
+		move.l	a2,Thread_regs_USP(a4)
 
 		movem.l	(sp)+,d1/a0-a2/a4
 		ENABLE_INTERRUPTS
 		rts
 
 ;------------------------------------------------------------------------
+; Terminate current thread.
+;
+; There is no way to terminate another thread -- you must make each
+;   thread terminate itself.
 
 terminateCurrentThread
 		DISABLE_INTERRUPTS
@@ -57,7 +70,14 @@ terminateCurrentThread
 .loop		bra.s	.loop
 
 ;------------------------------------------------------------------------
+; Change thread state to runnable - helper function used by scheduler
+;
+; This will ensure that a thread is in Runnable state. If it has higher
+;   priority than the currently-running thread, the scheduler will also
+;   switch to that thread.
+; 
 ; Interrupts are expected to be disabled when this function is called
+;
 ; in	d0.w	thread
 
 setThreadRunnable
@@ -76,6 +96,12 @@ setThreadRunnable
 		rts
 
 ;------------------------------------------------------------------------
+; Change current thread state to waiting - helper function used by signals
+;
+; The current thread will be changed to waiting state. The scheduler will
+;  determine which thread to switch to. The actual thread switch will
+;  occur once interrupts are re-enabled outside this function.
+;
 ; Interrupts are expected to be disabled when this function is called
 
 waitCurrentThread
@@ -97,20 +123,14 @@ waitCurrentThread
 		; Current thread will (potentially) go to sleep once the calling code re-enables interrupts
 		rts
 
+;------------------------------------------------------------------------
+
 		section	data,data
+
+;------------------------------------------------------------------------
 
 Threads_state
 		dcb.b	MAX_THREADS,Thread_state_Uninitialized
 		
 Threads_regs
-		REPT	MAX_THREADS
-		dc.l	0				; Thread_stackPtr
-		dc.l	0				; Thread_stackLow
-		dc.l	0				; Thread_stackHigh
-		dcb.l	8,0				; Thread_Dn
-		dcb.l	7,0				; Thread_An
-		dc.l	0				; Thread_USP
-		dc.l	0				; Thread_PC
-		dc.b	0				; Thread_CCR
-		dcb.b	3,0
-		ENDR
+		dcb.b	MAX_THREADS*Thread_regs_SIZEOF,0
