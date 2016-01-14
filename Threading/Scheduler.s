@@ -129,10 +129,10 @@ schedulerInterruptHandler
 
 		move.b	d1,currentThread
 		
-		lea	Threads_regs+Thread_regsToSwitchAtTaskSwitch_end,a0
-		lea	Threads_regs+Thread_regsToSwitchAtTaskSwitch_start,a1
-		lsl.w	#Thread_SIZEOF_Shift,d0
-		lsl.w	#Thread_SIZEOF_Shift,d1
+		lea	Threads_regs+Thread_regs_switchAtTaskSwitch_end,a0
+		lea	Threads_regs+Thread_regs_switchAtTaskSwitch_start,a1
+		lsl.w	#Thread_regs_SIZEOF_Shift,d0
+		lsl.w	#Thread_regs_SIZEOF_Shift,d1
 		add.w	d0,a0
 		add.w	d1,a1
 

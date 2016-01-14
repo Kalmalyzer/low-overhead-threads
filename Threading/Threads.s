@@ -26,16 +26,16 @@ setupThread
 
 .threadAvailable
 		move.b	#Thread_state_Runnable,(a4,d0.w)
-		mulu.w	#Thread_SIZEOF,d0
+		mulu.w	#Thread_regs_SIZEOF,d0
 		lea	Threads_regs,a4
 		add.l	d0,a4
 
-		move.l	a1,Thread_stackLow(a4)
-		move.l	a2,Thread_stackHigh(a4)
+		move.l	a1,Thread_regs_stackLow(a4)
+		move.l	a2,Thread_regs_stackHigh(a4)
 
-		move.l	a0,Thread_PC(a4)
+		move.l	a0,Thread_regs_PC(a4)
 		move.l	#terminateCurrentThread,-(a2)
-		move.l	a2,Thread_USP(a4)
+		move.l	a2,Thread_regs_USP(a4)
 
 		movem.l	(sp)+,d1/a0-a2/a4
 		ENABLE_INTERRUPTS
@@ -103,4 +103,4 @@ Threads_state
 		dcb.b	MAX_THREADS,Thread_state_Uninitialized
 		
 Threads_regs
-		dcb.b	MAX_THREADS*Thread_SIZEOF,0
+		dcb.b	MAX_THREADS*Thread_regs_SIZEOF,0
