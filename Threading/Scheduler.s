@@ -240,8 +240,8 @@ enableSchedulerInterrupt
 
 		section	data,data
 
-currentThread	dc.b	0
-desiredThread	dc.b	0
+currentThread	dc.b	-1
+desiredThread	dc.b	-1
 
 schedulerInterruptEnableCount dc.b	1
 
