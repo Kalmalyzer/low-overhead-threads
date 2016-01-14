@@ -15,8 +15,8 @@ start:
 		
 		moveq	#HelloWorldThreadId,d0
 		lea	HelloWorldThreadFunc,a0
-		lea	HelloWorldStackBegin,a1
-		lea	HelloWorldStackEnd,a2
+		lea	HelloWorldUserStackEnd,a1
+		lea	HelloWorldSuperStackEnd,a2
 		bsr	setupThread
 
 ; Run thread
@@ -37,6 +37,10 @@ HelloWorldThreadFunc
 		
 		section	bss,bss
 
-HelloWorldStackBegin
+HelloWorldUserStackBegin
 		ds.b	4096
-HelloWorldStackEnd
+HelloWorldUserStackEnd
+
+HelloWorldSuperStackBegin
+		ds.b	4096
+HelloWorldSuperStackEnd

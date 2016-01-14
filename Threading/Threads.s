@@ -19,8 +19,8 @@
 ;
 ; in	d0.w	thread index
 ;	a0	thread entry point
-;	a1	stack low address
-;	a2	stack high address
+;	a1	userstack end
+;	a2	superstack end
 
 setupThread
 		DISABLE_INTERRUPTS
@@ -35,16 +35,26 @@ setupThread
 
 .threadAvailable
 		move.b	#Thread_state_Runnable,(a4,d0.w)
-		mulu.w	#Thread_regs_SIZEOF,d0
-		lea	Threads_regs,a4
-		add.l	d0,a4
 
-		move.l	a1,Thread_regs_stackLow(a4)
-		move.l	a2,Thread_regs_stackHigh(a4)
+		move.l	#terminateCurrentThread,-(a1)
+		
+		lea	Threads_ssps,a4
+		lsl.w	#2,d0
+		add.w	d0,a4
+		
+		; Construct exception stack frame on supervisor stack
+		; TODO: construct appropriate stack frame for 68010+ CPUs
+		move.l	a0,-(a2)	; Initial PC
+		clr.w	-(a2)		; Initial SR
 
-		move.l	a0,Thread_regs_PC(a4)
-		move.l	#terminateCurrentThread,-(a2)
-		move.l	a2,Thread_regs_USP(a4)
+		; Push initial d0-a6 + USP to supervisor stack
+		REPT	15		; Initial d0-a6
+		clr.l	-(a2)
+		ENDR
+		move.l	a1,-(a2)	; Initial USP
+
+		; Store SSP for task
+		move.l	a2,(a4)		; Initial SSP
 
 		movem.l	(sp)+,d1/a0-a2/a4
 		ENABLE_INTERRUPTS
@@ -132,5 +142,5 @@ waitCurrentThread
 Threads_state
 		dcb.b	MAX_THREADS,Thread_state_Uninitialized
 		
-Threads_regs
-		dcb.b	MAX_THREADS*Thread_regs_SIZEOF,0
+Threads_ssps	dcb.l	MAX_THREADS,0
+		

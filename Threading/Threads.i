@@ -63,7 +63,7 @@ Thread_regs_SIZEOF	=	1<<(Thread_regs_SIZEOF_Shift)
 
 		XREF	setupThread
 		XREF	Threads_state
-		XREF	Threads_regs
+		XREF	Threads_ssps
 
 		XREF	setThreadRunnable
 		XREF	waitCurrentThread
