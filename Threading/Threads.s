@@ -8,6 +8,15 @@
 
 
 ;------------------------------------------------------------------------
+; Initialize a thread
+;
+; This function sets up initial register content and makes a thread
+;   runnable.
+; You need to provide both a starting execution point and a stack area
+;   for the thread.
+; The thread can terminate itself either by calling
+;   terminateCurrentThread or by returning from the entry point.
+;
 ; in	d0.w	thread index
 ;	a0	thread entry point
 ;	a1	stack low address
@@ -42,6 +51,10 @@ setupThread
 		rts
 
 ;------------------------------------------------------------------------
+; Terminate current thread.
+;
+; There is no way to terminate another thread -- you must make each
+;   thread terminate itself.
 
 terminateCurrentThread
 		DISABLE_INTERRUPTS
@@ -57,7 +70,14 @@ terminateCurrentThread
 .loop		bra.s	.loop
 
 ;------------------------------------------------------------------------
+; Change thread state to runnable - helper function used by scheduler
+;
+; This will ensure that a thread is in Runnable state. If it has higher
+;   priority than the currently-running thread, the scheduler will also
+;   switch to that thread.
+; 
 ; Interrupts are expected to be disabled when this function is called
+;
 ; in	d0.w	thread
 
 setThreadRunnable
@@ -76,6 +96,12 @@ setThreadRunnable
 		rts
 
 ;------------------------------------------------------------------------
+; Change current thread state to waiting - helper function used by signals
+;
+; The current thread will be changed to waiting state. The scheduler will
+;  determine which thread to switch to. The actual thread switch will
+;  occur once interrupts are re-enabled outside this function.
+;
 ; Interrupts are expected to be disabled when this function is called
 
 waitCurrentThread
@@ -97,7 +123,11 @@ waitCurrentThread
 		; Current thread will (potentially) go to sleep once the calling code re-enables interrupts
 		rts
 
+;------------------------------------------------------------------------
+
 		section	data,data
+
+;------------------------------------------------------------------------
 
 Threads_state
 		dcb.b	MAX_THREADS,Thread_state_Uninitialized

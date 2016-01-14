@@ -1,14 +1,33 @@
 
 
-MAX_THREADS	= 4
+MAX_THREADS	= 4	; Max number of threads supported by system; increase as necessary
 
 IdleThreadId	= MAX_THREADS-1
 
+;----------------------------------------------------------------------------------
+; Thread_state represent the possible states which a thread can be in.
+; If a thread with a given ID has not been setup, or it has terminated,
+;  it will be in state Uninitialized. This means that it is not part of 
+;  scheduling.
+; A thread which has been setup, and is not currently waiting for any signal,
+;  will be in state Runnable.
+; A thread which is currently waiting for a signal will be in state Waiting.
+;
+; There is no distinction in thread state between the currently running thread,
+;  and any other threads which are ready to run but waiting for their share of
+;  CPU -- the scheduler tracks this internally.
 
 Thread_state_Uninitialized = 0
 Thread_state_Runnable = 1
 Thread_state_Waiting = 2
 
+;----------------------------------------------------------------------------------
+; Thread_regs represent the context of a thread.
+; The register content is only valid for those threads that are not currently
+;   running.
+; Switching currently-executing thread involves dumping the currently-executing
+;   thread's register set into one instance of this struct, and then loading 
+;   all registers from another instance of the struct.
 
 		RSRESET
 Thread_regs_switchAtTaskSwitch_start rs.b 0

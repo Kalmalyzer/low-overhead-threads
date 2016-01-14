@@ -7,6 +7,8 @@
 		section	code,code
 
 ;------------------------------------------------------------------------
+; Set signal
+;
 ; in	d0.w	signal
 
 setSignal
@@ -40,6 +42,12 @@ setSignal
 		rts
 
 ;------------------------------------------------------------------------
+; Set signal - callable from within interrupt
+;
+; This function must only be called from a context where interrupts
+;   are disabled; either inside of an interrupt handler,
+;   or a section of code which has manually disabled interrupts.
+;
 ; in	d0.w	signal
 
 setSignalFromInterrupt
@@ -69,6 +77,8 @@ setSignalFromInterrupt
 		rts
 
 ;------------------------------------------------------------------------
+; Clear signal
+;
 ; in	d0.w	signal
 
 clearSignal
@@ -82,6 +92,15 @@ clearSignal
 		rts
 
 ;------------------------------------------------------------------------
+; Wait for signal, and clear it.
+;
+; If the signal is not currently set, the calling thread will switch to
+;   waiting state. It will switch back to being runnable once the signal
+;   is set by some other thread or interrupt handler.
+; 
+; If the signal is currently set, this function will immediately return
+;   without triggering any context switches or interrupts.
+;
 ; in	d0.w	signal
 
 waitAndClearSignal
@@ -118,8 +137,11 @@ waitAndClearSignal
 		ENABLE_INTERRUPTS
 		rts
 
+;------------------------------------------------------------------------
 		
 		section	data,data
+
+;------------------------------------------------------------------------
 
 Signals
 		dcb.b	MAX_SIGNALS,0		; Signals_state

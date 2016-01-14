@@ -8,6 +8,10 @@
 		section	code,code
 
 ;------------------------------------------------------------------------
+; Print string to standard output
+; The scheduler interrupt will temporarily be disabled during printing
+; All registers are preserved by this function
+;
 ; in	(sp)	pointer to string start (ASCIIZ)
 
 logMessageBasePtr
