@@ -143,10 +143,9 @@ schedulerInterruptHandler
 		
 		ACKNOWLEDGE_SCHEDULER_INTERRUPT
 
-		movem.l	d0-d1/a0-a1,-(sp)
-
-		moveq	#0,d0
-		move.b	currentThread,d0
+		movem.l	d0-d7/a0-a6,-(sp) ; Save d0-d7/a0-a6
+		move	usp,a0
+		move.l	a0,-(sp)	; Save USP
 
 		; desiredThread is sampled exactly once during the handler.
 		; It is sampled using an operation that is atomic on the A500.
@@ -160,47 +159,20 @@ schedulerInterruptHandler
 		;   of the desired thread, the scheduler will eventually
 		;   switch to that thread. It may require re-running the
 		;   scheduler interrupt handler an extra time.
-		
-		moveq	#0,d1
-		move.b	desiredThread,d1
-		
-		cmp.b	d0,d1
-		beq.s	.nSwitch
 
+		lea	Threads_ssps,a0
+		move.w	currentThread_word,d0
+		move.w	desiredThread_word,d1
 		move.b	d1,currentThread
-		
-		lea	Threads_regs+Thread_regs_switchAtTaskSwitch_end,a0
-		lea	Threads_regs+Thread_regs_switchAtTaskSwitch_start,a1
-		lsl.w	#Thread_regs_SIZEOF_Shift,d0
-		lsl.w	#Thread_regs_SIZEOF_Shift,d1
-		add.w	d0,a0
-		add.w	d1,a1
+		lsl.w	#2,d0
+		lsl.w	#2,d1
+		move.l	sp,(a0,d0.w)
+		move.l	(a0,d1.w),sp
 
-		movem.l	a2-a6,-(a0)	; Save a2-a6
-		movem.l	d2-d7,-(a0)	; Save d2-d7
-		movem.l	(sp)+,d4-d7
-		movem.l	d4-d7,-(a0)	; Save d0-d1/a0-a1
-		
-		move	usp,a2
-		move.l	a2,-(a0)	; Save USP
-		
-		move.w	(sp)+,-(a0)	; Save SR
-		move.l	(sp)+,-(a0)	; Save PC
-		
-		move.l	(a1)+,-(sp)	; Load PC
-		move.w	(a1)+,-(sp)	; Load SR
+		move.l	(sp)+,a0	; Load USP
+		move	a0,usp
+		movem.l	(sp)+,d0-d7/a0-a6 ; Load d0-d7/a0-a6
 
-		move.l	(a1)+,a2	; Load USP
-		move	a2,usp
-
-		movem.l	(a1)+,d4-d7	; Load d0-d1/a0-a1
-		movem.l	d4-d7,-(sp)
-		movem.l	(a1)+,d2-d7	; Load d2-d7
-		movem.l	(a1)+,a2-a6	; Load a2-a6
-		
-.nSwitch
-		movem.l	(sp)+,d0-d1/a0-a1
-		
 		rte
 		
 .nSoftInt
@@ -240,7 +212,11 @@ enableSchedulerInterrupt
 
 		section	data,data
 
+currentThread_word
+		dc.b	0
 currentThread	dc.b	-1
+desiredThread_word
+		dc.b	0
 desiredThread	dc.b	-1
 
 schedulerInterruptEnableCount dc.b	1

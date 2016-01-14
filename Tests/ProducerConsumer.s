@@ -17,14 +17,14 @@ ItemProducedSignalId = 0
 start:
 		moveq	#ConsumerThreadId,d0
 		lea	consumerThreadFunc,a0
-		lea	consumerStackBeginning,a1
-		lea	consumerStackEnd,a2
+		lea	consumerUserStackEnd,a1
+		lea	consumerSuperStackEnd,a2
 		bsr	setupThread
 
 		moveq	#ProducerThreadId,d0
 		lea	producerThreadFunc,a0
-		lea	producerStackBeginning,a1
-		lea	producerStackEnd,a2
+		lea	producerUserStackEnd,a1
+		lea	producerSuperStackEnd,a2
 		bsr	setupThread
 
 		bsr	runScheduler
@@ -128,10 +128,18 @@ writePtr	dc.l	items
 items
 		ds.b	1024
 		
-producerStackBeginning
+producerUserStackBeginning
 		ds.b	4096
-producerStackEnd
+producerUserStackEnd
 
-consumerStackBeginning
+producerSuperStackBeginning
 		ds.b	4096
-consumerStackEnd
+producerSuperStackEnd
+
+consumerUserStackBeginning
+		ds.b	4096
+consumerUserStackEnd
+
+consumerSuperStackBeginning
+		ds.b	4096
+consumerSuperStackEnd
