@@ -91,13 +91,11 @@ terminateCurrentThread
 ; in	d0.w	thread
 
 setThreadRunnable
-		move.w	d0,d1
 		lea	Threads_state,a0
 		move.b	#Thread_state_Runnable,(a0,d0.w)
 
-		move.b	desiredThread,d1
-		cmp.b	d0,d1
-		bls.s	.noThreadSwitch
+		cmp.b	desiredThread,d0
+		bhs.s	.noThreadSwitch
 
 		move.b	d0,desiredThread
 		REQUEST_SCHEDULER_INTERRUPT
