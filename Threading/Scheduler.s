@@ -24,7 +24,8 @@ runScheduler
 		LOG_INFO_STR "Scheduler begins running threads"
 
 		move.b	#IdleThreadId,currentThread
-		move.b	#Thread_state_Runnable,Threads_state+IdleThreadId
+		bset	#IdleThreadId,Threads_initializedFlags
+		bset	#IdleThreadId,Threads_runnableFlags
 
 		bsr	chooseThreadToRun
 		move.b	d0,desiredThread
@@ -87,13 +88,9 @@ removeSchedulerInterruptHandler
 ; out	d0.l	1 = threads alive, 0 = all threads dead
 
 anyThreadsAliveExceptIdleThread
-		lea	Threads_state,a0
-		moveq	#MAX_THREADS-2,d0
-.thread
-		cmp.b	#Thread_state_Uninitialized,(a0)
+		move.b	Threads_initializedFlags,d0
+		and.b	#(1<<(MAX_THREADS-1))-1,d0
 		bne.s	.alive_thread_found
-		addq.l	#1,a0
-		dbf	d0,.thread
 
 		moveq	#0,d0
 		rts
@@ -110,19 +107,15 @@ anyThreadsAliveExceptIdleThread
 ; out	d0.w	thread to run (IdleThreadId will always be runnable)
 
 chooseThreadToRun
-		lea	Threads_state,a0
-		moveq	#Thread_state_Runnable,d0
-		REPT	MAX_THREADS
-		cmp.b	(a0)+,d0
-		beq.s	.found
-		ENDR
-
-		LOG_ERROR_STR "No threads are in runnable state, including idle thread. The system has deadlocked."
-		
-.found
-		sub.l	#Threads_state+1,a0
-		move.l	a0,d0
+		moveq	#0,d0
+		move.b	Threads_runnableFlags,d0
+		beq.s	.noRunnableThreads
+		lea	runnableFlagsToChosenThread,a0
+		move.b	(a0,d0.w),d0
 		rts
+
+.noRunnableThreads
+		LOG_ERROR_STR "No threads are in runnable state, including idle thread. The system has deadlocked."
 
 ;------------------------------------------------------------------------
 ; Scheduler interrupt handler
@@ -224,3 +217,30 @@ schedulerInterruptEnableCount dc.b	1
 		cnop	0,4
 
 oldLevel1InterruptHandler dc.l	0
+
+;------------------------------------------------------------------------
+; Lookup table, answering: for a value in the range 0-255,
+;   what is the position of the lowest set bit?
+; For the value 0, no bits are set, and the corresponding position is -1.
+
+runnableFlagsToChosenThread
+
+RUNNABLE_FLAGS	SET	0
+		REPT	256
+
+RUNNABLE_FLAG_BIT 	SET	0
+FOUND_FLAG_BIT		SET	-1
+			REPT	8
+
+				IFLT	FOUND_FLAG_BIT
+					IFNE	RUNNABLE_FLAGS&(1<<RUNNABLE_FLAG_BIT)
+FOUND_FLAG_BIT					SET	RUNNABLE_FLAG_BIT
+					ENDC
+				ENDC
+
+RUNNABLE_FLAG_BIT		SET	RUNNABLE_FLAG_BIT+1
+			ENDR
+
+			dc.b	FOUND_FLAG_BIT
+RUNNABLE_FLAGS		SET	RUNNABLE_FLAGS+1
+		ENDR
