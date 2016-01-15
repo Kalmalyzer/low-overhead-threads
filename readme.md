@@ -34,12 +34,18 @@ You start the scheduler by invoking runScheduler. This function will return when
 
 Threads have implicit priority based on their thread IDs. You choose thread priorities at compile time and do not change it later.
 The scheduler will always run the highest-priority thread that is not waiting for any signal.
-When all threads are waiting, a STOP $2100 is performed.
+When all threads are waiting, the idle thread is running.
 
 # Interrupts
 
-Interrupts are not part of the threading model per se. The only threading-related call that interrupts are allowed to perform is setSignal.
+Signals can be set from interrupts. Other than that, interrupts have no control over threads.
 
 # Performance
 
-TODO
+Setting a signal when no thread is waiting for it: ~120 cycles
+
+Setting a signal when a thread is waiting for it, but it does not result in a context switch: ~220 cycles
+
+Setting a signal, when a thread is waiting for it, and it results in a context switch: ~750 cycles
+
+Waiting for a signal, which results in a context switch: ~730 cycles
