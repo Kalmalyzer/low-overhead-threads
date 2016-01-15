@@ -107,11 +107,10 @@ anyThreadsAliveExceptIdleThread
 ; out	d0.w	thread to run (IdleThreadId will always be runnable)
 
 chooseThreadToRun
-		moveq	#0,d0
-		move.b	Threads_runnableFlags,d0
-		beq.s	.noRunnableThreads
+		move.w	Threads_runnableFlags_word,d0
 		lea	runnableFlagsToChosenThread,a0
 		move.b	(a0,d0.w),d0
+		bmi.s	.noRunnableThreads
 		rts
 
 .noRunnableThreads

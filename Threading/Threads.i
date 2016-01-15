@@ -1,4 +1,6 @@
 
+		IFND	THREADS_I
+THREADS_I	SET	1
 
 MAX_THREADS	= 4	; Max number of threads supported by system; caps at 8
 
@@ -52,7 +54,10 @@ Thread_regs_SIZEOF	=	1<<(Thread_regs_SIZEOF_Shift)
 		XREF	setupThread
 		XREF	Threads_initializedFlags
 		XREF	Threads_runnableFlags
+		XREF	Threads_runnableFlags_word
 		XREF	Threads_ssps
 
 		XREF	setThreadRunnable
 		XREF	waitCurrentThread
+
+		ENDC

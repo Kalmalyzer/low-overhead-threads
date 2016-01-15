@@ -151,6 +151,10 @@ waitCurrentThread
 Threads_initializedFlags
 		dc.b	0
 
+		even
+		
+Threads_runnableFlags_word
+		dc.b	0
 Threads_runnableFlags
 		dc.b	0
 
