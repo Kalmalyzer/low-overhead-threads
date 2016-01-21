@@ -26,15 +26,14 @@ setupThread
 		DISABLE_INTERRUPTS
 		movem.l	d0/a0-a2/a4,-(sp)
 
-		lea	Threads_state,a4
-		
-		cmp.b	#Thread_state_Uninitialized,(a4,d0.w)
+		btst	d0,Threads_initializedFlags
 		beq.s	.threadAvailable
 
 		LOG_ERROR_STR "The application has attempted to setup a thread which is already in-use"
 
 .threadAvailable
-		move.b	#Thread_state_Runnable,(a4,d0.w)
+		bset	d0,Threads_initializedFlags
+		bset	d0,Threads_runnableFlags
 
 		move.l	#terminateCurrentThread,-(a1)
 		
@@ -68,10 +67,9 @@ setupThread
 
 terminateCurrentThread
 		DISABLE_INTERRUPTS
-		moveq	#0,d0
 		move.b	currentThread,d0
-		lea	Threads_state,a0
-		move.b	#Thread_state_Uninitialized,(a0,d0.w)
+		bclr	d0,Threads_runnableFlags
+		bclr	d0,Threads_initializedFlags
 		
 		bsr	chooseThreadToRun
 		move.b	d0,desiredThread
@@ -91,8 +89,7 @@ terminateCurrentThread
 ; in	d0.w	thread
 
 setThreadRunnable
-		lea	Threads_state,a0
-		move.b	#Thread_state_Runnable,(a0,d0.w)
+		bset	d0,Threads_runnableFlags
 
 		cmp.b	desiredThread,d0
 		bhs.s	.noThreadSwitch
@@ -119,11 +116,8 @@ waitCurrentThread
 		LOG_ERROR_STR "Attempted to wait with current thread while scheduler interrupt is disabled; the system has deadlocked"
 		
 .schedulerInterruptEnabled
-		
-		moveq	#0,d0
-		move.b	currentThread,d0
-		lea	Threads_state,a0
-		move.b	#Thread_state_Waiting,(a0,d0.w)
+
+		bclr	d0,Threads_runnableFlags
 
 		bsr	chooseThreadToRun
 		move.b	d0,desiredThread
@@ -137,8 +131,32 @@ waitCurrentThread
 
 ;------------------------------------------------------------------------
 
-Threads_state
-		dcb.b	MAX_THREADS,Thread_state_Uninitialized
+;----------------------------------------------------------------------------------
+; Threads_*flags represent the possible states which a thread can be in.
+; If a thread with a given ID has not been setup, or it has terminated,
+;  it will be in state Uninitialized. This means that it is not part of 
+;  scheduling.
+; A thread which has been setup, and is not currently waiting for any signal,
+;  will be in state Runnable.
+; A thread which is currently waiting for a signal will be in state Waiting.
+;
+; There is no distinction in thread state between the currently running thread,
+;  and any other threads which are ready to run but waiting for their share of
+;  CPU -- the scheduler tracks this internally.
+;
+; Uninitialized: initialized = 0, runnable = 0
+; Runnable: initialized = 1, runnable = 1
+; Waiting: initialized = 1, runnable = 0
+
+Threads_initializedFlags
+		dc.b	0
+
+		even
 		
+Threads_runnableFlags_word
+		dc.b	0
+Threads_runnableFlags
+		dc.b	0
+
 Threads_ssps	dcb.l	MAX_THREADS,0
 		

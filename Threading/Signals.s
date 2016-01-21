@@ -4,6 +4,8 @@
 		include	"Threading/Signals.i"
 		include	"Threading/Threads.i"
 
+		include	"Threading/Threads.m"
+
 		section	code,code
 
 ;------------------------------------------------------------------------
@@ -25,7 +27,7 @@ setSignal
 		LOG_INFO_STR "A thread is waiting on signal; setting that thread to runnable"
 
 		st	Signals_waitingThread(a0)
-		bsr	setThreadRunnable
+		M_setThreadRunnable	d0
 		ENABLE_INTERRUPTS
 		rts
 
@@ -63,7 +65,7 @@ setSignalFromInterrupt
 ;		LOG_INFO_STR "A thread is waiting on signal; setting that thread to runnable"
 
 		st	Signals_waitingThread(a0)
-		bsr	setThreadRunnable
+		M_setThreadRunnable	d0
 		rts
 
 .noThreadWaitingOnsignal
@@ -119,13 +121,10 @@ waitAndClearSignal
 
 		LOG_INFO_STR "Thread is waiting on signal that has not yet been signalled; goes into waiting state"
 
-		moveq	#0,d0
 		move.b	currentThread,d0
 		move.b	d0,Signals_waitingThread(a0)
 
-		move.l	a0,-(sp)
-		bsr	waitCurrentThread
-		move.l	(sp)+,a0
+		M_waitCurrentThread	d0,d1
 		ENABLE_INTERRUPTS
 		rts
 
