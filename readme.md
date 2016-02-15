@@ -1,8 +1,10 @@
 # Low-overhead threading for 680x0 based systems
 
-This library implements a small threading model, together and a synchronization primitive (signals). 
+This library implements a small threading model, including a synchronization primitive and a simple scheduler.
 All thread/synchronization operations are designed to be as low overhead as possible.
 The intended use case is for threading within real-time applications.
+
+The library is implemented as a set of subroutines.
 
 # Threads
 
